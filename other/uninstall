@@ -28,5 +28,5 @@ if [ -e "${kext}" ]; then
       printf 'Canceled.\n'
   esac
 else
-  printf 'Could not found "%s".\n' "${kext}"
+  printf 'Could not find "%s".\n' "${kext}"
 fi

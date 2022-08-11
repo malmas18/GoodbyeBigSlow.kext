@@ -7,7 +7,7 @@ This kext implements modification of an *undocumented* [MSR (Model-Specific Regi
 
 Unlike [DisableTurboBoost.kext](https://github.com/nanoant/DisableTurboBoost.kext), by default this kext does not fuss with Intel Turbo Boost Technology which dynamically increases the processor's frequency as needed by taking advantage of thermal and power headroom to give you a burst of speed when you need it, and increased energy efficiency when you don't.  Disabling this functionality might prevent your computer from shutting down due to surges of voltage change.
 
-You may have also noticed other slowdowns by background processes like `syspolicyd`, `trustd`, `taskgated`, `MRT`, `WindowServer`, `VTDecoderXPCService` but this kext is not going to solve them.
+You may have also noticed other slowdowns by background processes like `syspolicyd`, `trustd`, `taskgated`, `XProtectService`, `tccd`, `MRT`, `WindowServer`, `VTDecoderXPCService` but this kext is not going to solve them.
 
 Prerequisites
 ---------------
@@ -21,7 +21,7 @@ Command Line Tools are available as extra add-on from `Preferences > Downloads` 
 Installation
 --------------
 
-For the impatient: skip step 2-4 by downloading [the pre-compiled kext](https://github.com/jakwings/GoodbyeBigSlow.kext/releases) and putting it into `/Library/Extensions`.
+For the impatient: skip step 2-5 by downloading [the pre-compiled kext](https://github.com/jakwings/GoodbyeBigSlow.kext/releases) and putting it into `/Library/Extensions`.
 
 1. Run `csrutil disable` or `csrutil enable --without kext` in [Recovery Mode](https://support.apple.com/kb/HT201314).
 2. Run `git clone https://github.com/jakwings/GoodbyeBigSlow.kext ; cd ./GoodbyeBigSlow.kext`

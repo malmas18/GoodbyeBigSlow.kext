@@ -2,7 +2,7 @@
 NAME := GoodbyeBigSlow
 
 KEXT_ID      := jakwings.kext.$(NAME)
-KEXT_VERSION := 2022.5.31
+KEXT_VERSION := 2022.8.10
 
 MACOS_VERSION_MIN := 11.6
 
@@ -17,7 +17,19 @@ KEXT_DEPS := Makefile \
              $(NAME)/$(NAME).c \
              $(NAME)/$(NAME).hpp \
              $(NAME)/$(NAME).cpp \
-             $(NAME)/Info.plist \
+             $(NAME)/Info.plist
+
+KEXT_FLAGS := $(CFLAGS) $(CPPFLAGS) \
+              -DXCODE_OFF -DKEXT_ID=$(KEXT_ID) -DKEXT_VERSION=$(KEXT_VERSION) \
+              -std=c++11 -stdlib=libc++ -Os \
+              -nostdinc -fno-builtin -fno-exceptions -fno-rtti -fno-common \
+              -mkernel -fapple-kext -fasm-blocks -fstrict-aliasing \
+              -DKERNEL -DKERNEL_PRIVATE -DDRIVER_PRIVATE -DAPPLE -DNeXT \
+              -isystem "$(shell xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks/Kernel.framework/Headers" \
+              -mmacosx-version-min=$(MACOS_VERSION_MIN) \
+              -static -o $(KEXT_BIN) $(NAME)/$(NAME).cpp \
+              -Xlinker -kext -nostdlib -lkmodc++ -lkmod -lcc_kext \
+              -pedantic -Wall -Wextra -Wno-extra-semi -Wno-gnu-zero-variadic-macro-arguments
 
 PLUGIN_DIR  := $(KEXT_DIR)/Contents/PlugIns/X86PlatformShim.kext
 PLUGIN_DEPS := Makefile \
@@ -50,7 +62,7 @@ ifeq ($(XCODE),ON)
 else
 	mkdir -p $(KEXT_DIR)/Contents/MacOS
 	sed -e 's/\$$(PRODUCT_BUNDLE_IDENTIFIER)/$(KEXT_ID)/g' -e 's/\$$(MARKETING_VERSION)/$(KEXT_VERSION)/g' -e 's/\$$(MACOSX_DEPLOYMENT_TARGET)/$(MACOS_VERSION_MIN)/g' <$(NAME)/Info.plist >$(KEXT_DIR)/Contents/Info.plist
-	$(CXX) $(CFLAGS) $(CPPFLAGS) -DXCODE_OFF -DKEXT_ID=$(KEXT_ID) -DKEXT_VERSION=$(KEXT_VERSION) -nostdinc -std=c++11 -stdlib=libc++ -Os -fno-builtin -fno-exceptions -fno-rtti -fno-common -mkernel -fapple-kext -fasm-blocks -fstrict-aliasing -DKERNEL -DKERNEL_PRIVATE -DDRIVER_PRIVATE -DAPPLE -DNeXT -isystem "$(shell xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks/Kernel.framework/Headers" -mmacosx-version-min=$(MACOS_VERSION_MIN) -static $(NAME)/$(NAME).cpp -o $(KEXT_BIN) -Xlinker -kext -nostdlib -lkmodc++ -lkmod -lcc_kext -pedantic -Wall -Wextra -Wno-extra-semi
+	xcrun clang++ $(KEXT_FLAGS)
 endif
 	xcrun codesign --force --deep --sign "$(CODE_SIGN_IDENTITY)" --entitlements $(NAME)/entitlements.xml --timestamp=none $(KEXT_DIR)
 
@@ -80,7 +92,11 @@ load:
 unload:
 	sudo kextunload -v 4 -b $(KEXT_ID)
 
+reload:
+	$(MAKE) unload
+	$(MAKE) load
+
 clean:
 	rm -v -R -f build
 
-.PHONEY: all install uninstall clean
+.PHONEY: all clean install uninstall load unload reload

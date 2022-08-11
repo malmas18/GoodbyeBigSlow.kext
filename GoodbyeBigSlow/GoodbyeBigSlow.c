@@ -2,13 +2,12 @@
 #include <mach/mach_types.h>
 #include <i386/proc_reg.h>
 #include <i386/cpuid.h>
-#include <sys/ioccom.h>
 #include <IOKit/IOLib.h>
 
 // IDEA: kick X86PlatformShim.kext off the candidate list (failed)
 // IDEA: patch __ZN15X86PlatformShim18sendHardPLimitXCPMEi (Lilu.kext)
 // IDEA: SMC_Write(KPPW, KernelProtectionPassword) SMC_Write(MSAL, 0bX0XX1100)
-// TODO: GoodbyeBigSlowClient
+// TODO: GoodbyeBigSlowClient (sudo)
 //       $ plimit [<frequency>]
 //       $ gpu frequency [<frequency>]
 //       $ cpu frequency [<frequency>]
@@ -56,8 +55,9 @@ extern void mp_rendezvous_no_intrs(void (*func)(void *), void *arg);
 //        constant Pn state (Low Frequency Mode) of the processor.
 static void mp_deassert_prochot(void *data)
 {
-    SInt64 *cpucount = (SInt64 *)data;
-    SInt64 *disabled = (SInt64 *)data + 1;
+    SInt64 *cpucount   = (SInt64 *)data;
+    SInt64 *asserted   = (SInt64 *)data + 1;
+    SInt64 *deasserted = (SInt64 *)data + 2;
     uint64_t old_bits = rdmsr64(MSR_IA32_POWER_CTL);
     uint64_t new_bits = old_bits & ~kMsrEnableProcHot;
 
@@ -66,10 +66,9 @@ static void mp_deassert_prochot(void *data)
         wrmsr64(MSR_IA32_POWER_CTL, new_bits);
         IOSleep(1);
         if (!(rdmsr64(MSR_IA32_POWER_CTL) & kMsrEnableProcHot)) {
-            OSIncrementAtomic64(VOLATILE_ACCESS(disabled));
+            OSIncrementAtomic64(VOLATILE_ACCESS(deasserted));
         }
-    } else {
-        OSIncrementAtomic64(VOLATILE_ACCESS(disabled));
+        OSIncrementAtomic64(VOLATILE_ACCESS(asserted));
     }
     OSIncrementAtomic64(VOLATILE_ACCESS(cpucount));
 }
@@ -106,14 +105,15 @@ static void log_prochot(void)
     mp_rendezvous_no_intrs(mp_log_prochot, &mask);
 }
 
-static bool deassert_prochot(void)
+static bool deassert_prochot(SInt64 counts[3])
 {
-    SInt64 counts[2] __attribute__((aligned(sizeof(SInt64)))) = {0, 0};
-
     mp_rendezvous_no_intrs(mp_deassert_prochot, counts);
 
-    if (counts[0] == counts[1]) {
-        log_prochot();
+    // asserted == deasserted
+    if (counts[1] == counts[2]) {
+        if (counts[1] > 0) {
+            log_prochot();
+        }
         return true;
     }
     return false;
@@ -206,21 +206,22 @@ static bool using_targeted_intel_cpu(void)
     return false;
 }
 
-#define LOG(fmt, ...) IOLog("[GoodbyeBigSlow] " fmt "\n", __VA_ARGS__)
+//////////////////////////////////////////////////////////////////////////////
+///// Debug Utils
 
-static void DBLog(const char *s)
-{
-    LOG("%s", s);
-}
+#define DBLog(fmt, ...) IOLog("[GoodbyeBigSlow] " fmt "\n", ##__VA_ARGS__)
 
 static void DBLogStatus(const char *s, int n)
 {
     if (n == -1) {
-        LOG("%s ...", s);
+        DBLog("%s ...", s);
     } else {
-        LOG("%s ... %s", s, n ? "Success" : "Failure");
+        DBLog("%s ... %s", s, n ? "Success" : "Failure");
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+///// Entry Points
 
 static kern_return_t kext_start(__unused kmod_info_t *_o, __unused void *data)
 {
@@ -264,8 +265,14 @@ static kern_return_t kext_start(__unused kmod_info_t *_o, __unused void *data)
         }
     }
 
+    // cpucount, asserted, deasserted
+    SInt64 counts[3] __attribute__((aligned(sizeof(SInt64)))) = {0, 0, 0};
+
     DBLogStatus("De-asserting Processor Hot", -1);
-    ret = deassert_prochot();
+    ret = deassert_prochot(counts);
+    DBLog("CPU count = %lld", counts[0]);
+    DBLog("PROCHOT asserted = %lld", counts[1]);
+    DBLog("PROCHOT de-asserted = %lld", counts[2]);
     DBLogStatus("De-asserting Processor Hot", ret);
 
     return KERN_SUCCESS;

@@ -28,15 +28,18 @@ on_exit() {
 }
 trap on_exit EXIT
 
-vendor="$(sysctl -n machdep.cpu.vendor)"
-processor="$(sysctl -n machdep.cpu.brand_string)"
+vendor="$(sysctl -n machdep.cpu.vendor || printf unknown)"
+processor="$(sysctl -n machdep.cpu.brand_string || printf unknown)"
 
 recognized=no
 
 case "${vendor}" in
   (*[Ii][Nn][Tt][Ee][Ll]*)
-    signature="$(sysctl -n machdep.cpu.family machdep.cpu.model)"
-    signature="$(printf '%02X_%02X' $signature)"
+    if signature="$(sysctl -n machdep.cpu.family machdep.cpu.model)"; then
+      signature="$(printf '%02X_%02X' $signature)"
+    else
+      signature=unknown
+    fi
 
     # CPU specifications
     # https://ark.intel.com/content/www/us/en/ark/search/featurefilter.html
