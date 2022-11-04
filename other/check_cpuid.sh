@@ -28,8 +28,8 @@ on_exit() {
 }
 trap on_exit EXIT
 
-vendor="$(sysctl -n machdep.cpu.vendor || printf unknown)"
-processor="$(sysctl -n machdep.cpu.brand_string || printf unknown)"
+vendor="$(sysctl -n machdep.cpu.vendor)" || vendor=unknown
+processor="$(sysctl -n machdep.cpu.brand_string)" || processor=unknown
 
 recognized=no
 
