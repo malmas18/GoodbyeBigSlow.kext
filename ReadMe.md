@@ -31,7 +31,7 @@ For the impatient: skip step 2-5 by downloading [the pre-compiled kext](https://
 6. Remember to check `System Preferences > Security & Privacy > General > Allow System software from developer "Unidentified - GoodbyeBigSlow"`.
 7. Shut down the computer.
 8. Reset the [System Management Controller (SMC)](https://support.apple.com/kb/HT201295).
-9. Reboot the computer and optionally run `sudo pmset -a hibernatemode 0 standby 0 autopoweroff 0` to prevent system sleep.
+9. Reboot the computer and optionally run `sudo pmset -a hibernatemode 0 standby 0 autopoweroff 0 displaysleep 0` to prevent system sleep or voltage fluctuation.
 10. If the kext causes kernel panic, in Recovery Mode run `kmutil trigger-panic-medic` to unapprove this kext, or remove the kext (may need to `diskutil apfs unlockVolume` if FileVault is enabled).
 
 Repeat step 7-9 if throttling reoccurs in the future.
